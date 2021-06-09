@@ -331,6 +331,47 @@ router.put("/user/update_password", isAuthenticated, async (req, res) => {
   }
 });
 
+router.put("/user/recover_password/", async (req, res) => {
+  try {
+    if (req.fields.email) {
+      const user = await User.findOne({ email: req.fields.email });
+
+      if (user) {
+        //création d'un token spécial pr modifier le mdp
+        const update_password_token = uid2(16);
+        user.updatePasswordToken = update_password_token;
+
+        //on genere un timing pour modifier le mdp
+        const update_password_expireAt = Date.now();
+        user.updatePasswordExpireAt = update_password_expireAt;
+
+        await user.save();
+
+        const data = {
+          from: "Mailgun Test MDP Airbnb <postmaster@" + process.env.MAILGUN_DOMAIN + ">",
+          to: "emmanuellebaron1@gmail.com",
+          subject: "Changez votre mot de passe sur Airbnb",
+          text: `Veuillez cliquer sur le lien ci-dessous pour créer un nouveau mot de passe : https://airbnb/change_password?token=${update_password_token}. Vous avez 15 mins`,
+        };
+
+        await mg.messages().send(data, function (error, body) {
+          if (error) {
+            res.status(400).json({ message: "An error occurred" });
+          } else {
+            res.status(200).json({ message: "A link has been sent to the user" });
+          }
+        });
+      } else {
+        res.status(400).json({ message: "User not found" });
+      }
+    } else {
+      res.status(400).json({ message: "Missing email" });
+    }
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
 router.get("/users/:id", async (req, res) => {
   try {
     if (req.params.id) {

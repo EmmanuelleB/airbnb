@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const User = mongoose.model("User", {
   email: { unique: true, required: true, type: String },
   token: String,
+  updatePasswordToken: { type: String, default: {} },
+  updatePasswordExpireAt: { type: Number, default: {} },
   hash: String,
   salt: String,
   account: {
