@@ -372,6 +372,58 @@ router.put("/user/recover_password/", async (req, res) => {
   }
 });
 
+router.put("/user/reset_password/", async (req, res) => {
+  const { updatePasswordToken, password } = req.fields;
+  try {
+    if (updatePasswordToken && password) {
+      const user = await User.findOne({ updatePasswordToken: updatePasswordToken });
+
+      if (user) {
+        const date = Date.now();
+        console.log(date);
+
+        const difference = date - user.updatePasswordExpireAt;
+        console.log(difference);
+
+        let isExpired;
+        if (difference < 9000000) {
+          isExpired = false;
+        } else {
+          isExpired = true;
+        }
+
+        if (!isExpired) {
+          const newSalt = uid2(16);
+          const newHash = SHA256(password + user.salt).toString(encBase64);
+          const newToken = uid2(16);
+
+          user.salt = newSalt;
+          user.hash = newHash;
+          user.token = newToken;
+          user.updatePasswordToken = null;
+          user.updatePasswordExpireAt = null;
+
+          await user.save();
+
+          res.status(200).json({
+            _id: user._id,
+            token: user.token,
+            email: user.email,
+          });
+        } else {
+          res.status(400).json({ message: "Time is expired" });
+        }
+      } else {
+        res.status(400).json({ message: "User not found" });
+      }
+    } else {
+      res.status(400).json({ message: "Missing parameter(s)" });
+    }
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
 router.get("/users/:id", async (req, res) => {
   try {
     if (req.params.id) {
