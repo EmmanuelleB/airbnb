@@ -110,13 +110,10 @@ router.put("/user/upload-picture/:id", isAuthenticated, async (req, res) => {
         if (String(req.user._id) === String(user._id)) {
           if (req.files.picture) {
             if (!user.account.photo) {
-              const pictureToUpdate = await cloudinary.uploader.upload(
-                req.files.picture.path,
-                {
-                  folder: `/airbnb/profile_photo_user/${user._id}`,
-                  public_id: req.files.picture,
-                }
-              );
+              const pictureToUpdate = await cloudinary.uploader.upload(req.files.picture.path, {
+                folder: `/airbnb/profile_photo_user/${user._id}`,
+                public_id: req.files.picture,
+              });
 
               user.account.photo = pictureToUpdate;
 
@@ -137,14 +134,11 @@ router.put("/user/upload-picture/:id", isAuthenticated, async (req, res) => {
                 },
               });
             } else {
-              const pictureToModify = await cloudinary.uploader.upload(
-                req.files.picture.path,
-                {
-                  folder: `/airbnb/profile_photo_user/${user._id}`,
-                  public_id: req.files.picture,
-                  overwrite: true,
-                }
-              );
+              const pictureToModify = await cloudinary.uploader.upload(req.files.picture.path, {
+                folder: `/airbnb/profile_photo_user/${user._id}`,
+                public_id: req.files.picture,
+                overwrite: true,
+              });
               user.account.photo = pictureToModify;
 
               await user.save();
@@ -190,9 +184,7 @@ router.delete("/user/delete-picture/:id", isAuthenticated, async (req, res) => {
         if (String(req.user._id) === String(user._id)) {
           await cloudinary.uploader.destroy(`${user.account.photo.public_id}`);
 
-          await cloudinary.api.delete_folder(
-            `/airbnb/profile_photo_user/${user._id}`
-          );
+          await cloudinary.api.delete_folder(`/airbnb/profile_photo_user/${user._id}`);
 
           await User.findByIdAndUpdate(req.params.id, {
             "account.photo": null,
@@ -284,15 +276,11 @@ router.put("/user/update_password", isAuthenticated, async (req, res) => {
     if (previousPassword && newPassword) {
       const user = req.user;
 
-      const hashPreviousPassword = SHA256(
-        user.salt + previousPassword
-      ).toString(encBase64);
+      const hashPreviousPassword = SHA256(user.salt + previousPassword).toString(encBase64);
 
       //verifier si l'ancien mdp est correct
       if (user.hash === hashPreviousPassword) {
-        const hashNewPassword = SHA256(user.salt + newPassword).toString(
-          encBase64
-        );
+        const hashNewPassword = SHA256(user.salt + newPassword).toString(encBase64);
         // verifier si l'ancien mdp et le nouveau sont différents
         if (hashPreviousPassword !== hashNewPassword) {
           const newSalt = uid2(16);
@@ -306,10 +294,7 @@ router.put("/user/update_password", isAuthenticated, async (req, res) => {
           await user.save();
 
           const data = {
-            from:
-              "Mailgun Test MDP Airbnb <postmaster@" +
-              process.env.MAILGUN_DOMAIN +
-              ">",
+            from: "Mailgun Test MDP Airbnb <postmaster@" + process.env.MAILGUN_DOMAIN + ">",
             to: "emmanuellebaron1@gmail.com",
             subject: "Mot de passe Airbnb",
             text: `Le mot de passe de ${user.account.username} a bien été modifié.`,
