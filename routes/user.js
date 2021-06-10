@@ -9,6 +9,8 @@ const mailgun = require("mailgun-js");
 const User = require("../models/User");
 const Room = require("../models/Room");
 const isAuthenticated = require("../middleware/isAuthenticated");
+const { query } = require("express");
+const { findById } = require("../models/User");
 
 //mailgun
 const DOMAIN = process.env.MAILGUN_DOMAIN;
@@ -380,10 +382,8 @@ router.put("/user/reset_password/", async (req, res) => {
 
       if (user) {
         const date = Date.now();
-        console.log(date);
 
         const difference = date - user.updatePasswordExpireAt;
-        console.log(difference);
 
         let isExpired;
         if (difference < 9000000) {
@@ -464,6 +464,32 @@ router.get("/user/rooms/:id", async (req, res) => {
         } else {
           res.status(400).json({ message: "This user has not room" });
         }
+      } else {
+        res.status(401).json({ message: "Unauthorized" });
+      }
+    } else {
+      res.status(400).json({ message: "Missing ID" });
+    }
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.delete("/user/delete/:id", isAuthenticated, async (req, res) => {
+  try {
+    if (req.params.id) {
+      const user = await findById(req.params.id);
+      if (user) {
+        const rooms = await Room.find({ user: user._id });
+
+        for (let i = 0; i < rooms.length; i++) {
+          await Room.findByIdAndRemove(rooms[i]._id);
+          //supp image cloudinary??
+          await cloudinary.uploader.destroy();
+        }
+
+        await User.findByIdAndDelete(user._id);
+        res.status(200).json({ message: "User deleted" });
       } else {
         res.status(401).json({ message: "Unauthorized" });
       }
