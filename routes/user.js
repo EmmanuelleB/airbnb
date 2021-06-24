@@ -475,17 +475,19 @@ router.get("/user/rooms/:id", async (req, res) => {
   }
 });
 
-router.delete("/user/delete/:id", isAuthenticated, async (req, res) => {
+router.delete("/user/delete", isAuthenticated, async (req, res) => {
+  const {} = req.fields;
   try {
-    if (req.params.id) {
-      const user = await findById(req.params.id);
+  
+      const user = req.user;
       if (user) {
         const rooms = await Room.find({ user: user._id });
 
         for (let i = 0; i < rooms.length; i++) {
+          await cloudinary.uploader.destroy(rooms[i].user._id);
+          await cloudinary.api.delete-folder(`/airbnb/rooms_photos/${room.user._id}`)
           await Room.findByIdAndRemove(rooms[i]._id);
-          //supp image cloudinary??
-          await cloudinary.uploader.destroy();
+          
         }
 
         await User.findByIdAndDelete(user._id);
@@ -493,10 +495,8 @@ router.delete("/user/delete/:id", isAuthenticated, async (req, res) => {
       } else {
         res.status(401).json({ message: "Unauthorized" });
       }
-    } else {
-      res.status(400).json({ message: "Missing ID" });
-    }
-  } catch (error) {
+  
+    } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
