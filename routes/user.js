@@ -9,61 +9,55 @@ const mailgun = require("mailgun-js");
 const User = require("../models/User");
 const Room = require("../models/Room");
 const isAuthenticated = require("../middleware/isAuthenticated");
-const { query } = require("express");
-const { findById } = require("../models/User");
 
 //mailgun
 const DOMAIN = process.env.MAILGUN_DOMAIN;
 const mg = mailgun({ apiKey: process.env.MAILGUN_API_KEY, domain: DOMAIN });
 
 router.post("/user/sign_up", async (req, res) => {
-  console.log(req.fields);
   try {
-    if (req.fields) {
-      const { email, password, username, name, description } = req.fields;
+    const { email, password, username, name, description } = req.fields;
 
-      const user = await User.findOne({ email: email, username: username });
+    const userMail = await User.findOne({ email: email });
+    const userUsername = await User.findOne({ "account.username": username });
 
-      if (!user) {
-        if (password && email && username && name && description) {
-          const salt = uid2(16);
-
-          const hash = SHA256(salt + password).toString(encBase64);
-
-          const token = uid2(16);
-
-          const newUser = new User({
-            email: email,
-            account: {
-              username: username,
-              name: name,
-              description: description,
-            },
-            salt: salt,
-            hash: hash,
-            token: token,
-          });
-
-          await newUser.save();
-
-          res.status(200).json({
-            _id: newUser._id,
-            token: newUser.token,
-            email: newUser.email,
-            account: {
-              username: newUser.account.username,
-              description: newUser.account.description,
-              name: newUser.account.name,
-            },
-          });
-        } else {
-          res.status(400).json({ message: "Missing parameter(s)" });
-        }
-      } else {
-        res.status(400).json({ message: "Email or username is already used" });
-      }
+    if (userMail || userUsername) {
+      res.status(400).json({ message: "Email or username is already used" });
     } else {
-      res.status(400).json({ message: "Missing parameter(s)" });
+      if (password && email && username && name && description) {
+        const salt = uid2(16);
+
+        const hash = SHA256(salt + password).toString(encBase64);
+
+        const token = uid2(16);
+
+        const newUser = new User({
+          email: email,
+          account: {
+            username: username,
+            name: name,
+            description: description,
+          },
+          salt: salt,
+          hash: hash,
+          token: token,
+        });
+
+        await newUser.save();
+
+        res.status(200).json({
+          _id: newUser._id,
+          token: newUser.token,
+          email: newUser.email,
+          account: {
+            username: newUser.account.username,
+            description: newUser.account.description,
+            name: newUser.account.name,
+          },
+        });
+      } else {
+        res.status(400).json({ message: "Missing parameter(s)" });
+      }
     }
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -431,6 +425,7 @@ router.get("/users/:id", async (req, res) => {
       if (user) {
         res.status(200).json({
           _id: user._id,
+          email: user.email,
           account: user.account,
           rooms: user.rooms,
         });
@@ -478,25 +473,26 @@ router.get("/user/rooms/:id", async (req, res) => {
 router.delete("/user/delete", isAuthenticated, async (req, res) => {
   const {} = req.fields;
   try {
-  
-      const user = req.user;
-      if (user) {
-        const rooms = await Room.find({ user: user._id });
+    const user = req.user;
 
-        for (let i = 0; i < rooms.length; i++) {
-          await cloudinary.uploader.destroy(rooms[i].user._id);
-          await cloudinary.api.delete-folder(`/airbnb/rooms_photos/${room.user._id}`)
-          await Room.findByIdAndRemove(rooms[i]._id);
-          
-        }
+    if (user) {
+      const rooms = await Room.find({ user: user._id });
 
-        await User.findByIdAndDelete(user._id);
-        res.status(200).json({ message: "User deleted" });
-      } else {
-        res.status(401).json({ message: "Unauthorized" });
+      for (let i = 0; i < rooms.length; i++) {
+        await cloudinary.uploader.destroy(rooms[i].photos);
+        // console.log("--1---" + rooms[i].photos);
+        // console.log("--1---" + rooms[i].user._id);
+        await cloudinary.api.delete_folder(`/airbnb/rooms_photos/${user._id}`);
+        // console.log("--2---" + user._id);
+        await Room.findByIdAndRemove(rooms[i]._id);
       }
-  
-    } catch (error) {
+
+      await User.findByIdAndDelete(user._id);
+      res.status(200).json({ message: "User deleted" });
+    } else {
+      res.status(401).json({ message: "Unauthorized" });
+    }
+  } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
